@@ -54,6 +54,7 @@ Before anything is copied, it shows you a **dry run**: a list of the meetings fr
 - **Meetings held in a Teams channel are left alone.** Their files already live in that team's SharePoint site.
 - **It can add files to SharePoint but never moves or deletes them.** If something lands in the wrong folder, move it yourself.
 - **Renaming a client files its last 7 days of meetings again** under the new name. Older files keep the old name.
+- **If you delete the scheduled run in Cowork yourself, tell Cowork** ("I deleted the recording uploads schedule"). The skill keeps a note that the run exists, and clearing it lets the next client setup create a new one.
 
 ## Things you can say
 

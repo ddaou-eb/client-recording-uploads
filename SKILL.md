@@ -51,16 +51,21 @@ There is **one** scheduled task, not one per client. The calendar is pulled once
    - **Internal handling**: skip internal meetings, file them in the external folder, or file them in a separate internal folder (then its link).
 3. **Resolve each folder link** to a fixed folder ID: `CallGraph` GET `/shares/{encoded-link}/driveItem`, where the encoded link is `u!` followed by the base64url form of the link (no trailing `=`). Save `driveId`, the item `id`, and the folder `name`, and read the folder name back to the user so they can see it's the right one. If a link will not resolve, stop and say so; a profile with an unresolved folder is never saved.
 4. **Show the complete profile and get a final confirm**, then save it to `clients/<client-slug>.md` (format below).
-5. **Make sure the batch task exists** (see *Scheduling*). The first time any client is set up, also confirm the batch settings and save `clients/_settings.md`.
+5. **Make sure the batch task exists.** Decide from the `clients/` folder, not from `GetScheduledPrompts` alone: that call may only show this session's tasks, so an empty result does not prove the task is missing. One task total, for all clients.
+   - **`clients/_schedule.md` exists** → the task is already set up. Change nothing.
+   - **No marker, and the profile just saved is the only client profile** → this is the user's first setup, so no batch task can exist yet. Confirm the batch settings, save `clients/_settings.md`, create the task (see *Scheduling*), and write the marker. Do not skip it because existing schedules are not visible.
+   - **No marker, but other client profiles exist** → these clients were set up before the marker existed. Call `GetScheduledPrompts`; if the batch task appears, write the marker and change nothing. If it does not, ask once: *"Do you already have the recording uploads batch run in Cowork's scheduled tasks?"* Yes → write the marker. No → create the task and write the marker.
 6. **Dry run this client** for the past 7 days and show the result: each meeting found, its classification, and the exact file names and folders it would produce. Nothing is written.
 7. **Offer a one-time backfill**: an on-demand run for this client over a longer window the user chooses (for example the past 30 days). Run it only on a yes.
-8. **Retire the old task.** If step 1 found an older per-client task for this client, tell the user to delete it in Cowork now. Left in place, it files and emails a second time.
+8. **Retire the old task.** If step 1 found an older per-client task for this client, tell the user to delete it in Cowork now. If step 1 found none, ask once whether one exists, since `GetScheduledPrompts` may not show it. Left in place, it files and emails a second time.
 
-Setup is complete when the profile is saved, the batch task exists exactly once, and the user has seen the dry run.
+Setup is complete when the profile is saved, the batch task exists exactly once and `clients/_schedule.md` records it, and the user has seen the dry run.
 
 ## Client Profiles
 
-One file per client in this skill's `clients/` folder. The folder **ships empty** and is each user's own: a teammate who installs the skill starts blank and runs their own setup. Any file starting with `_` is settings, not a client.
+One file per client in this skill's `clients/` folder. The folder **ships empty** and is each user's own: a teammate who installs the skill starts blank and runs their own setup.
+
+**What counts as a client profile:** every `.md` file in `clients/` except `README.md` and any file whose name starts with `_`. The batch run, and the "only client profile" check in setup step 5, use this definition. `clients/_settings.md` holds the batch settings and `clients/_schedule.md` is the scheduling marker (see *Scheduling*); neither is a client.
 
 ```markdown
 ---
@@ -156,7 +161,7 @@ Examples:
 
 ## Scheduling
 
-**One task for every client.** Create it with `SetupScheduledPrompt` (`execution_mode: separate`) the first time any client is set up. Confirm the cadence, time, and time zone at that moment:
+**One task for every client.** Create it with `SetupScheduledPrompt` (`execution_mode: separate`) the first time any client is set up. Setup step 5 decides whether to create it; follow that rule rather than relying on `GetScheduledPrompts` alone. Confirm the cadence, time, and time zone at that moment:
 
 - **Every weekday** (the default: Monday to Friday, 7:00 PM) → `frequency: Week`, `weekDays` Monday to Friday.
 - **Weekly** on a chosen day → `frequency: Week`, `interval: 1`, `weekDays: [day]`.
@@ -164,7 +169,17 @@ Examples:
 
 The task description is this one fixed instruction, naming no client: *"Run the client-recording-uploads skill's Batch Run for every client with a saved profile in its clients/ folder."* Clients are read from the folder, so adding or changing a client never touches the task.
 
-Before creating it, call `GetScheduledPrompts` and confirm it doesn't already exist; two batch tasks file and email twice. To change or pause it, `GetScheduledPrompts`, then `EditScheduledPrompt`. The scheduler runs on holidays too; on a day with no meetings the run finds nothing.
+**Write the marker every time the task is created or confirmed.** Save `clients/_schedule.md` with the schedule, so later setups know the task exists even when `GetScheduledPrompts` cannot see it. Two batch tasks would file and email twice, and the marker is what prevents that.
+
+```markdown
+---
+batch_task: Every weekday 7:00 PM America/Chicago
+recorded: 2026-10-26
+---
+The recording uploads batch task exists. Delete this file if the task is deleted.
+```
+
+To change or pause it, `GetScheduledPrompts`, then `EditScheduledPrompt`, and update `batch_task` in the marker. If the user deletes the task, delete the marker too, so the next setup recreates it. The scheduler runs on holidays too; on a day with no meetings the run finds nothing.
 
 ## Tools
 
