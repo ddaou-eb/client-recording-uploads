@@ -1,0 +1,5 @@
+# Client profiles hold SharePoint folder links and client email domains,
+# so they are excluded from version control. Each teammate builds their own
+# by running the skill's setup. This also covers _settings.md.
+*.md
+!README.md
