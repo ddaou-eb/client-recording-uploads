@@ -136,7 +136,8 @@ The same steps serve an on-demand run and a dry run: an on-demand run may narrow
    - **Transcript:** `CallGraph` PUT `/drives/{drive_id}/items/{item_id}:/{url-encoded file name}:/content?@microsoft.graph.conflictBehavior=fail`, `Content-Type: text/vtt`, body = the VTT text. A successful response returns the new file, which confirms it.
    - **Recording:** `CallGraph` POST `/drives/{source-drive}/items/{source-item}/copy?@microsoft.graph.conflictBehavior=fail` with the destination `parentReference` and the new `name`. The copy is asynchronous: a "202 Accepted" means started, not done. Confirm the file is in the destination folder before listing it as filed; if it isn't there yet, list it as "copy started, not yet confirmed".
    - Any failed call is an **error** for that meeting, with the message returned. The run moves on to the next meeting.
-7. **Email the summary** per the `notify` setting, with `SendEmailWithAttachments` to the user. **An error always sends the email**, whatever the setting. One section per client listing each file filed and where, then one *needs you* list and one errors list. Every count in the email is the count of the itemized lines beneath it.
+7. **Check the destination folders.** List each destination folder again (`GetDriveChildren`) and compare it to the files this run meant to write. A file counts as filed only when its exact name is now in the folder. Re-check any "copy started" recording once more; a transcript that is missing becomes an error with its name. Every count in the summary comes from this listing, not from the calls made in step 6.
+8. **Email the summary** per the `notify` setting, with `SendEmailWithAttachments` to the user. **An error always sends the email**, whatever the setting. One section per client listing each file filed and where, then one *needs you* list and one errors list. Every count in the email is the count of the itemized lines beneath it.
 
 ## File Naming
 
