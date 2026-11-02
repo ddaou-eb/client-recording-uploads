@@ -1,24 +1,27 @@
 ---
-name: client-recording-uploads
+name: meeting-file-organizer
 description: >-
-  Files Teams meeting transcripts and recordings into each client's SharePoint
-  folders on one recurring schedule. A one-time setup per client saves a profile
-  (meeting keywords, client email domains, destination folders); one scheduled
-  batch run then covers every saved client: it finds each client's meetings on
-  the calendar, classifies each internal or external, saves each transcript as a
-  .vtt file, copies real video recordings, and emails a summary. Use when the
-  user says "set up recording uploads for [client]", "add [client] to recording
-  uploads", "reconfigure recording uploads for [client]", "run recording uploads
-  now", or "dry run recording uploads". Do NOT use for a one-off copy of a single
-  file, meeting summaries or notes (use meeting-intel), or deleting files.
-cowork:
+  Organizes the files from Teams meetings the user organized into each client's
+  SharePoint project folders on one recurring schedule. A one-time setup per
+  client saves a profile (meeting keywords, client email domains, destination
+  folders), all confirmed by the user; one scheduled batch run then covers every
+  saved client: it finds each client's meetings on the user's calendar, sorts
+  each into internal or external, saves the meeting transcript as a .vtt file,
+  copies the meeting video, and emails the user a summary. Use when the user
+  says "set up meeting file organizer for [client]", "add [client] to meeting
+  file organizer", "reconfigure meeting file organizer for [client]", "run
+  meeting file organizer now", or "dry run meeting file organizer". Do NOT use
+  for a one-off copy of a single file, meeting summaries or notes (use
+  meeting-intel), or deleting files.
+metadata:
   category: automation
   icon: CloudArrowUp
+  display-name: Meeting File Organizer
 ---
 
-# Client Recording Uploads
+# Meeting File Organizer
 
-Files each client's Teams meeting transcripts and recordings into that client's SharePoint folders, split internal vs external, on **one scheduled batch run** that covers every client with a saved profile. Every per-client setting is **confirmed with the user at setup and saved to a profile**, never inferred at run time.
+Keeps each client's SharePoint project folders complete by filing the transcripts and videos from the user's own Teams meetings with that client, split internal vs external, on **one scheduled batch run** that covers every client with a saved profile. Every per-client setting is **confirmed with the user at setup and saved to a profile**, never inferred at run time.
 
 ## When NOT to Use
 
@@ -30,10 +33,10 @@ Files each client's Teams meeting transcripts and recordings into that client's 
 
 | Mode | Triggered by | Covers | Writes files? |
 |---|---|---|---|
-| **Setup** | "set up / add / reconfigure recording uploads for [client]" | One client | Saves the profile only |
-| **Dry run** | End of every setup, or "dry run recording uploads" | One client or all | No. Lists what *would* be filed |
+| **Setup** | "set up / add / reconfigure meeting file organizer for [client]" | One client | Saves the profile only |
+| **Dry run** | End of every setup, or "dry run meeting file organizer" | One client or all | No. Lists what *would* be filed |
 | **Batch run** | The one recurring scheduled task | Every client with a profile | Yes |
-| **On-demand run** | "run recording uploads now [for client] [past N days]" | One client or all | Yes |
+| **On-demand run** | "run meeting file organizer now [for client] [past N days]" | One client or all | Yes |
 
 There is **one** scheduled task, not one per client. The calendar is pulled once per run and filtered per client, so adding a client means adding a profile, never another task.
 
@@ -41,7 +44,7 @@ There is **one** scheduled task, not one per client. The calendar is pulled once
 
 ## Setup (one client)
 
-1. **Start from what exists.** If `clients/<client-slug>.md` exists, this is a reconfigure: load it and treat its values as proposals. Call `GetScheduledPrompts`; if an older per-client recording-upload task for this client exists, read its description and propose its values too.
+1. **Start from what exists.** If `clients/<client-slug>.md` exists, this is a reconfigure: load it and treat its values as proposals. Call `GetScheduledPrompts`; if an older per-client task from version 1 of this skill exists for this client, read its description and propose its values too.
 2. **Confirm every profile field** with `AskUserQuestion`, in batches of at most four questions, recommended option first. For anything the user must type or paste (folder links, domains, keywords), pass `options: []` for a free-text answer rather than authoring an "Other" option.
    - **Client name**, used in file names.
    - **Keywords**: one or more words or phrases that mark a meeting title as this client's.
@@ -49,12 +52,12 @@ There is **one** scheduled task, not one per client. The calendar is pulled once
    - **Firm domain** (normally `eidebailly.com`).
    - **External folder**: the SharePoint link for external meetings.
    - **Internal handling**: skip internal meetings, file them in the external folder, or file them in a separate internal folder (then its link).
-3. **Resolve each folder link** to a fixed folder ID: `CallGraph` GET `/shares/{encoded-link}/driveItem`, where the encoded link is `u!` followed by the base64url form of the link (no trailing `=`). Save `driveId`, the item `id`, and the folder `name`, and read the folder name back to the user so they can see it's the right one. If a link will not resolve, stop and say so; a profile with an unresolved folder is never saved.
+3. **Resolve each folder link** to a fixed folder ID: `CallGraph` GET `/shares/{share-id}/driveItem`, where `share-id` is the sharing link written in Microsoft Graph's standard share-ID format: `u!` followed by the link in URL-safe Base64, with no trailing `=`. This is the format Microsoft documents for opening a shared OneDrive or SharePoint item. Save `driveId`, the item `id`, and the folder `name`, and read the folder name back to the user so they can see it's the right one. If a link will not resolve, stop and say so; a profile with an unresolved folder is never saved.
 4. **Show the complete profile and get a final confirm**, then save it to `clients/<client-slug>.md` (format below).
 5. **Make sure the batch task exists.** Decide from the `clients/` folder, not from `GetScheduledPrompts` alone: that call may only show this session's tasks, so an empty result does not prove the task is missing. One task total, for all clients.
    - **`clients/_schedule.md` exists** → the task is already set up. Change nothing.
    - **No marker, and the profile just saved is the only client profile** → this is the user's first setup, so no batch task can exist yet. Confirm the batch settings, save `clients/_settings.md`, create the task (see *Scheduling*), and write the marker. Do not skip it because existing schedules are not visible.
-   - **No marker, but other client profiles exist** → these clients were set up before the marker existed. Call `GetScheduledPrompts`; if the batch task appears, write the marker and change nothing. If it does not, ask once: *"Do you already have the recording uploads batch run in Cowork's scheduled tasks?"* Yes → write the marker. No → create the task and write the marker.
+   - **No marker, but other client profiles exist** → these clients were set up before the marker existed. Call `GetScheduledPrompts`; if the batch task appears, write the marker and change nothing. If it does not, ask once: *"Do you already have the Meeting File Organizer batch run in Cowork's scheduled tasks?"* Yes → write the marker. No → create the task and write the marker.
 6. **Dry run this client** for the past 7 days and show the result: each meeting found, its classification, and the exact file names and folders it would produce. Nothing is written.
 7. **Offer a one-time backfill**: an on-demand run for this client over a longer window the user chooses (for example the past 30 days). Run it only on a yes.
 8. **Retire the old task.** If step 1 found an older per-client task for this client, tell the user to delete it in Cowork now. If step 1 found none, ask once whether one exists, since `GetScheduledPrompts` may not show it. Left in place, it files and emails a second time.
@@ -78,16 +81,16 @@ client_domains:            # any attendee on one of these makes a meeting EXTERN
   - contosoadvisors.com
 firm_domain: eidebailly.com
 external_folder:
-  link: https://tenant.sharepoint.com/:f:/r/sites/Contoso/Shared%20Documents/External%20Meeting%20Recordings
+  link: https://tenant.sharepoint.com/:f:/r/sites/Contoso/Shared%20Documents/External%20Meetings
   drive_id: b!AbCdEf...
   item_id: 01ABCDEF...
-  name: External Meeting Recordings
+  name: External Meetings
 internal_handling: separate   # skip | same | separate
 internal_folder:              # only when internal_handling is separate
-  link: https://tenant.sharepoint.com/:f:/r/sites/Contoso/Shared%20Documents/Internal%20Recordings
+  link: https://tenant.sharepoint.com/:f:/r/sites/Contoso/Shared%20Documents/Internal%20Meetings
   drive_id: b!AbCdEf...
   item_id: 01GHIJKL...
-  name: Internal Recordings
+  name: Internal Meetings
 ---
 Optional notes about this engagement.
 ```
@@ -117,7 +120,7 @@ The same steps serve an on-demand run and a dry run: an on-demand run may narrow
 2. **Pull the calendar once.** One `ListCalendarView` call for the past **7 days** in the settings time zone, keeping online meetings that have ended and are not cancelled. Select subject, start, end, organizer, isOrganizer, attendees, and onlineMeeting. The duplicate check (step 6) makes re-scanning earlier days harmless, and a transcript still processing at run time is picked up by the next run.
 3. **Match meetings to clients.** A meeting belongs to a client when a keyword appears in its title as a **whole word**, ignoring case. Then sort out the exceptions, each of which goes on the *needs you* list with its reason:
    - **Matches more than one client** → filed under neither.
-   - **The user is not the organizer** (`isOrganizer` is false) → "you don't own this meeting; request access from the organizer".
+   - **The user is not the organizer** (`isOrganizer` is false) → "organized by someone else; ask the organizer to share the files if you need them".
    - **Channel meeting** (the join link contains `@thread.tacv2`) → "channel meeting; its files live in the team's SharePoint site".
 4. **Classify each meeting, in this order, first match wins:**
    1. The title contains the word "internal" → **INTERNAL**.
@@ -168,7 +171,7 @@ Examples:
 - **Weekly** on a chosen day → `frequency: Week`, `interval: 1`, `weekDays: [day]`.
 - **Daily** → `frequency: Day`, `interval: 1`.
 
-The task description is this one fixed instruction, naming no client: *"Run the client-recording-uploads skill's Batch Run for every client with a saved profile in its clients/ folder."* Clients are read from the folder, so adding or changing a client never touches the task.
+The task description is this one fixed instruction, naming no client: *"Run the meeting-file-organizer skill's Batch Run for every client with a saved profile in its clients/ folder."* Clients are read from the folder, so adding or changing a client never touches the task.
 
 **Write the marker every time the task is created or confirmed.** Save `clients/_schedule.md` with the schedule, so later setups know the task exists even when `GetScheduledPrompts` cannot see it. Two batch tasks would file and email twice, and the marker is what prevents that.
 
@@ -177,7 +180,7 @@ The task description is this one fixed instruction, naming no client: *"Run the 
 batch_task: Every weekday 7:00 PM America/Chicago
 recorded: 2026-10-26
 ---
-The recording uploads batch task exists. Delete this file if the task is deleted.
+The Meeting File Organizer batch task exists. Delete this file if the task is deleted.
 ```
 
 To change or pause it, `GetScheduledPrompts`, then `EditScheduledPrompt`, and update `batch_task` in the marker. If the user deletes the task, delete the marker too, so the next setup recreates it. The scheduler runs on holidays too; on a day with no meetings the run finds nothing.
@@ -198,28 +201,29 @@ After setup:
 ```text
 Saved: Contoso Manufacturing
 • Matched by: "Contoso" or "CMFG" as a whole word in the title
-• External (any @contoso.com or @contosoadvisors.com attendee) → External Meeting Recordings
-• Internal ("internal" in title, or only @eidebailly.com attendees) → Internal Recordings
+• External (any @contoso.com or @contosoadvisors.com attendee) → External Meetings
+• Internal ("internal" in title, or only @eidebailly.com attendees) → Internal Meetings
 • Batch run: every weekday at 7:00 PM Central, covering 3 clients
-• Dry run, past 7 days: 2 transcripts and 1 recording would be filed (listed below)
+• Dry run, past 7 days: 2 transcripts and 1 video would be filed (listed below)
 ```
 
 The run's email:
 
 ```text
-Recording uploads: Fri, Jul 17
+Meeting File Organizer: Fri, Jul 17
 Contoso Manufacturing: 3 files filed
-  • 2026-07-17 1400 - Contoso Manufacturing - Weekly Sync.vtt → External Meeting Recordings
-  • 2026-07-17 1400 - Contoso Manufacturing - Weekly Sync.mp4 → External Meeting Recordings
-  • 2026-07-16 0930 - Contoso Manufacturing - Internal Prep.vtt → Internal Recordings
+  • 2026-07-17 1400 - Contoso Manufacturing - Weekly Sync.vtt → External Meetings
+  • 2026-07-17 1400 - Contoso Manufacturing - Weekly Sync.mp4 → External Meetings
+  • 2026-07-16 0930 - Contoso Manufacturing - Internal Prep.vtt → Internal Meetings
 Fabrikam: nothing new
 Needs you: 1
-  • "Contoso Exec Review" (Jul 16): you don't own this meeting; request access from the organizer
+  • "Contoso Exec Review" (Jul 16): organized by someone else; ask the organizer to share the files if you need them
 Errors: none
 ```
 
 ## Guardrails
 
+- **Only the user's own meetings.** A meeting is filed only when the user organized it; anything else goes on the *needs you* list and is left alone.
 - **Confirm, don't infer.** Every profile field is confirmed with the user and every folder link is resolved at setup. Folder links, domains, and client names come only from the user.
 - **Copy and upload only.** SharePoint files can be added but not deleted with these tools, so fixing a misfiled file is manual. That is why an unclear meeting goes on the *needs you* list instead of into a folder.
 - **Client isolation.** A meeting is filed under exactly one client, and one client's error never stops another client's run.
