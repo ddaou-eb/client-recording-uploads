@@ -13,14 +13,14 @@ A Microsoft Copilot Cowork skill that keeps your clients' SharePoint project fol
    ![Upload skill button in Copilot Cowork's Customize > Skills screen](docs/upload-skill.png)
 
 3. Upload the zip from step 1.
-4. Say "set up meeting file organizer for [client]". It will walk you through one-time setup (meeting keywords, the client's email domain, and SharePoint folder links), show you what it would file before copying anything, and save your own profile under `clients/`.
+4. Say "set up meeting file organizer for [client]". It will walk you through one-time setup (meeting keywords, the client's email domain, and SharePoint folder links), show you what it would file before copying anything, and save your own profile.
 
-Your client profiles never leave your own copy: the `clients/` folder ships empty and is gitignored, so nothing you configure gets shared back here.
+Your client profiles are saved in your own OneDrive at `Documents/Cowork/profiles/meeting-file-organizer/`, outside the skill. They are never part of the skill, so sharing or updating the skill never shares or overwrites your settings.
 
 ## What's in this repo
 
 - `SKILL.md`: the skill's instructions
-- `clients/`: where your own client profiles get saved (empty here on purpose)
+- `docs/`: the two screenshots above
 
 ## Updates
 

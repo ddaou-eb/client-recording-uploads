@@ -44,7 +44,7 @@ There is **one** scheduled task, not one per client. The calendar is pulled once
 
 ## Setup (one client)
 
-1. **Start from what exists.** If `clients/<client-slug>.md` exists, this is a reconfigure: load it and treat its values as proposals. Call `GetScheduledPrompts`; if an older per-client task from version 1 of this skill exists for this client, read its description and propose its values too.
+1. **Start from what exists.** If `<client-slug>.md` exists in the profile folder (see *Client Profiles*), this is a reconfigure: load it and treat its values as proposals. Call `GetScheduledPrompts`; if an older per-client task from version 1 of this skill exists for this client, read its description and propose its values too.
 2. **Confirm every profile field** with `AskUserQuestion`, in batches of at most four questions, recommended option first. For anything the user must type or paste (folder links, domains, keywords), pass `options: []` for a free-text answer rather than authoring an "Other" option.
    - **Client name**, used in file names.
    - **Keywords**: one or more words or phrases that mark a meeting title as this client's.
@@ -53,22 +53,26 @@ There is **one** scheduled task, not one per client. The calendar is pulled once
    - **External folder**: the SharePoint link for external meetings.
    - **Internal handling**: skip internal meetings, file them in the external folder, or file them in a separate internal folder (then its link).
 3. **Resolve each folder link** to a fixed folder ID: `CallGraph` GET `/shares/{share-id}/driveItem`, where `share-id` is the sharing link written in Microsoft Graph's standard share-ID format: `u!` followed by the link in URL-safe Base64, with no trailing `=`. This is the format Microsoft documents for opening a shared OneDrive or SharePoint item. Save `driveId`, the item `id`, and the folder `name`, and read the folder name back to the user so they can see it's the right one. If a link will not resolve, stop and say so; a profile with an unresolved folder is never saved.
-4. **Show the complete profile and get a final confirm**, then save it to `clients/<client-slug>.md` (format below).
-5. **Make sure the batch task exists.** Decide from the `clients/` folder, not from `GetScheduledPrompts` alone: that call may only show this session's tasks, so an empty result does not prove the task is missing. One task total, for all clients.
-   - **`clients/_schedule.md` exists** → the task is already set up. Change nothing.
-   - **No marker, and the profile just saved is the only client profile** → this is the user's first setup, so no batch task can exist yet. Confirm the batch settings, save `clients/_settings.md`, create the task (see *Scheduling*), and write the marker. Do not skip it because existing schedules are not visible.
+4. **Show the complete profile and get a final confirm**, then save it to `<client-slug>.md` in the profile folder (format below).
+5. **Make sure the batch task exists.** Decide from the profile folder, not from `GetScheduledPrompts` alone: that call may only show this session's tasks, so an empty result does not prove the task is missing. One task total, for all clients.
+   - **`_schedule.md` exists** → the task is already set up. Change nothing.
+   - **No marker, and the profile just saved is the only client profile** → this is the user's first setup, so no batch task can exist yet. Confirm the batch settings, save `_settings.md`, create the task (see *Scheduling*), and write the marker. Do not skip it because existing schedules are not visible.
    - **No marker, but other client profiles exist** → these clients were set up before the marker existed. Call `GetScheduledPrompts`; if the batch task appears, write the marker and change nothing. If it does not, ask once: *"Do you already have the Meeting File Organizer batch run in Cowork's scheduled tasks?"* Yes → write the marker. No → create the task and write the marker.
 6. **Dry run this client** for the past 7 days and show the result: each meeting found, its classification, and the exact file names and folders it would produce. Nothing is written.
 7. **Offer a one-time backfill**: an on-demand run for this client over a longer window the user chooses (for example the past 30 days). Run it only on a yes.
 8. **Retire the old task.** If step 1 found an older per-client task for this client, tell the user to delete it in Cowork now. If step 1 found none, ask once whether one exists, since `GetScheduledPrompts` may not show it. Left in place, it files and emails a second time.
 
-Setup is complete when the profile is saved, the batch task exists exactly once and `clients/_schedule.md` records it, and the user has seen the dry run.
+Setup is complete when the profile is saved, the batch task exists exactly once and `_schedule.md` records it, and the user has seen the dry run.
 
 ## Client Profiles
 
-One file per client in this skill's `clients/` folder. The folder **ships empty** and is each user's own: a teammate who installs the skill starts blank and runs their own setup.
+Profiles are kept **outside this skill**, in the user's own OneDrive, so the skill can be shared without carrying anyone's client settings and every user keeps their own:
 
-**What counts as a client profile:** every `.md` file in `clients/` except `README.md` and any file whose name starts with `_`. The batch run, and the "only client profile" check in setup step 5, use this definition. `clients/_settings.md` holds the batch settings and `clients/_schedule.md` is the scheduling marker (see *Scheduling*); neither is a client.
+**The profile folder** is `Documents/Cowork/profiles/meeting-file-organizer/` in the signed-in user's OneDrive. Read and write it with the file tools that reach the user's OneDrive; if those can't, use `CallGraph` on `/me/drive/root:/Documents/Cowork/profiles/meeting-file-organizer/{file name}:/content` (GET to read, PUT with `Content-Type: text/markdown` to save) and `/me/drive/root:/Documents/Cowork/profiles/meeting-file-organizer:/children` to list it. Create the folder on the first save. Never save a profile, `_settings.md`, or `_schedule.md` inside this skill's own folder.
+
+**Moving from an older version.** Earlier versions kept these files in a `clients/` folder inside the skill. If the profile folder has no client profiles but the skill's `clients/` folder does, copy every `.md` file except `README.md` into the profile folder, read the copies back to confirm them, and tell the user the old copies can be deleted. Do this once, before anything else.
+
+**What counts as a client profile:** every `.md` file in the profile folder except `README.md` and any file whose name starts with `_`. The batch run, and the "only client profile" check in setup step 5, use this definition. `_settings.md` holds the batch settings and `_schedule.md` is the scheduling marker (see *Scheduling*); neither is a client.
 
 ```markdown
 ---
@@ -95,7 +99,7 @@ internal_folder:              # only when internal_handling is separate
 Optional notes about this engagement.
 ```
 
-`clients/_settings.md` holds the batch-wide settings:
+`_settings.md` in the profile folder holds the batch-wide settings:
 
 ```markdown
 ---
@@ -116,7 +120,7 @@ Every setting changes only when the user asks; edit the profile and confirm the 
 
 The same steps serve an on-demand run and a dry run: an on-demand run may narrow to one client or widen the window; a dry run stops before step 6 and reports what it would do.
 
-1. **Load the settings and every profile.** A profile missing a folder ID is an error for that client, reported in the email; the other clients still run.
+1. **Load the settings and every profile** from the profile folder. A profile missing a folder ID is an error for that client, reported in the email; the other clients still run.
 2. **Pull the calendar once.** One `ListCalendarView` call for the past **7 days** in the settings time zone, keeping online meetings that have ended and are not cancelled. Select subject, start, end, organizer, isOrganizer, attendees, and onlineMeeting. The duplicate check (step 6) makes re-scanning earlier days harmless, and a transcript still processing at run time is picked up by the next run.
 3. **Match meetings to clients.** A meeting belongs to a client when a keyword appears in its title as a **whole word**, ignoring case. Then sort out the exceptions, each of which goes on the *needs you* list with its reason:
    - **Matches more than one client** → filed under neither.
@@ -171,9 +175,9 @@ Examples:
 - **Weekly** on a chosen day → `frequency: Week`, `interval: 1`, `weekDays: [day]`.
 - **Daily** → `frequency: Day`, `interval: 1`.
 
-The task description is this one fixed instruction, naming no client: *"Run the meeting-file-organizer skill's Batch Run for every client with a saved profile in its clients/ folder."* Clients are read from the folder, so adding or changing a client never touches the task.
+The task description is this one fixed instruction, naming no client: *"Run the meeting-file-organizer skill's Batch Run for every client with a saved profile."* Clients are read from the profile folder, so adding or changing a client never touches the task. An older task description that ends "in its clients/ folder" means the same thing.
 
-**Write the marker every time the task is created or confirmed.** Save `clients/_schedule.md` with the schedule, so later setups know the task exists even when `GetScheduledPrompts` cannot see it. Two batch tasks would file and email twice, and the marker is what prevents that.
+**Write the marker every time the task is created or confirmed.** Save `_schedule.md` in the profile folder with the schedule, so later setups know the task exists even when `GetScheduledPrompts` cannot see it. Two batch tasks would file and email twice, and the marker is what prevents that.
 
 ```markdown
 ---
@@ -228,4 +232,4 @@ Errors: none
 - **Copy and upload only.** SharePoint files can be added but not deleted with these tools, so fixing a misfiled file is manual. That is why an unclear meeting goes on the *needs you* list instead of into a folder.
 - **Client isolation.** A meeting is filed under exactly one client, and one client's error never stops another client's run.
 - **Silence means nothing happened.** Errors always email, so a quiet inbox never hides a broken run.
-- **Portable.** Settings live in `clients/`, and the skill itself holds no personal or client data, so it can be shared across the team.
+- **Portable.** Settings live in each user's own profile folder, and the skill itself holds no personal or client data, so it can be shared across the team.
